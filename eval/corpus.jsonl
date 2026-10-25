@@ -1,0 +1,2 @@
+{"query": "Во сколько конференция?", "gold_answer": "11:00, корпус 2", "gold_sources": [12, 45], "type": "move"}
+{"query": "Кто едет на митап?", "gold_answer": null, "gold_sources": [], "type": "no_answer"}
