@@ -9,6 +9,27 @@ TIME_RE = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 MOVE_WORDS = re.compile(r"(перенос|перенес|сдвиг|изменени)", re.IGNORECASE)
 CANCEL_WORDS = re.compile(r"(отмен|не состоится|не будет)", re.IGNORECASE)
 
+MONTHS = {
+    "январ": 1, "феврал": 2, "март": 3, "апрел": 4,
+    "ма": 5, "июн": 6, "июл": 7, "август": 8,
+    "сентябр": 9, "октябр": 10, "ноябр": 11, "декабр": 12,
+}
+
+WORD_DATE_RE = re.compile(
+    r"(\d{1,2})\s+"
+    r"(январ\w*|феврал\w*|март\w*|апрел\w*|ма[йя]|июн\w*|июл\w*|"
+    r"август\w*|сентябр\w*|октябр\w*|ноябр\w*|декабр\w*)",
+    re.IGNORECASE,
+)
+
+
+def _month_num(word: str) -> Optional[int]:
+    w = word.lower()
+    for stem, num in MONTHS.items():
+        if w.startswith(stem):
+            return num
+    return None
+
 
 class EventAgent:
     """
@@ -31,6 +52,24 @@ class EventAgent:
                 event_time = datetime(year, month, day, hour, minute)
             except ValueError:
                 event_time = None
+        else:
+            word_match = WORD_DATE_RE.search(msg_text)
+            if word_match:
+                day = int(word_match.group(1))
+                month = _month_num(word_match.group(2))
+                if month:
+                    hour = int(time_match.group(1)) if time_match else 0
+                    minute = int(time_match.group(2)) if time_match else 0
+                    try:
+                        event_time = datetime(msg_date.year, month, day, hour, minute)
+                    except ValueError:
+                        event_time = None
+
+        # Только время без даты — считаем, что это дата сообщения
+        if event_time is None and time_match:
+            hour = int(time_match.group(1))
+            minute = int(time_match.group(2))
+            event_time = msg_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
         if CANCEL_WORDS.search(msg_text):
             delta_type = "cancelled"
@@ -49,7 +88,10 @@ class EventAgent:
 
         return EventDelta(delta_type, event_time, location, msg_id, msg_date)
 
-    def apply(self, state: EventState, delta: EventDelta) -> EventState:
+    def apply(self, state: EventState, delta: Optional[EventDelta]) -> EventState:
+        if delta is None:
+            return state
+
         if delta.type == "cancelled":
             state.status = "cancelled"
         elif delta.type == "moved":

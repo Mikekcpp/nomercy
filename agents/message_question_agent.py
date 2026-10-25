@@ -21,7 +21,7 @@ class QuestionAgent:
     )
     MAX_GAP = timedelta(hours=12)
 
-    def __init__(self, sim_threshold: float = 0.78):
+    def __init__(self, sim_threshold: float = 0.85):
         self.sim_threshold = sim_threshold
 
     def _is_question_seed(self, m: Message) -> bool:
